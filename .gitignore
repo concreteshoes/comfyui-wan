@@ -1,0 +1,35 @@
+# OS/system files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+
+# IDE/editor folders
+.vscode/
+.idea/
+*.code-workspace
+
+# Python cache/build
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+build/
+dist/
+*.egg-info/
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+
+# Logs, temp files
+*.log
+tmp/
+temp/

@@ -1,0 +1,97 @@
+# .circleci/config.yml
+version: 2.1
+
+executors:
+  docker-dind:
+    machine:
+      image: ubuntu-2404:current
+      docker_layer_caching: false
+    environment:
+      DOCKER_BUILDKIT: 1
+      COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  build_and_push:
+    executor: docker-dind
+    parameters:
+      tag_name:
+        type: string
+      channel:
+        type: string   # "stable" or "experimental"
+    steps:
+      - checkout
+
+      - run:
+          name: Log in to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+      - run:
+          name: Validate tag
+          command: |
+            if [ -z "<< parameters.tag_name >>" ]; then
+              echo "No tag found for this pipeline run — skipping image build."
+              exit 0
+            fi
+
+      - run:
+          name: Check for CRLF line endings
+          command: |
+            if grep -rlI $'\r' ./; then
+              echo "ERROR: CRLF line endings detected! Convert all scripts to LF before building."
+              exit 1
+            else
+              echo "✅ No CRLF detected. All files are LF."
+            fi
+
+      - run:
+          name: Build & push image
+          command: |
+            TAG="<< parameters.tag_name >>"
+            IMG="docker.io/${DOCKERHUB_USER}/comfyui-wan"
+
+            echo "Building ${IMG}:${TAG}"
+            docker build --progress=plain -t "${IMG}:${TAG}" .
+            docker push "${IMG}:${TAG}"
+
+            if [ "<< parameters.channel >>" = "stable" ]; then
+              echo "Tagging and pushing ${IMG}:latest"
+              docker tag "${IMG}:${TAG}" "${IMG}:latest"
+              docker push "${IMG}:latest"
+            fi
+
+            if [ "<< parameters.channel >>" = "experimental" ]; then
+              echo "Tagging and pushing ${IMG}:experimental"
+              docker tag "${IMG}:${TAG}" "${IMG}:experimental"
+              docker push "${IMG}:experimental"
+            fi
+
+workflows:
+  version: 2
+  release_builds:
+    # Workflow runs ONLY when a tag exists and matches either stable or experimental patterns
+    when:
+      matches:
+        pattern: "^v[0-9]+\\.[0-9]+\\.[0-9]+(-e)?$"
+        value: << pipeline.git.tag >>
+
+    jobs:
+      # Stable releases: vX.Y.Z only on master
+      - build_and_push:
+          tag_name: << pipeline.git.tag >>
+          channel: "stable"
+          filters:
+            branches:
+              only: master
+            tags:
+              only: /^v[0-9]+\.[0-9]+\.[0-9]+$/
+
+      # Experimental releases: vX.Y.Z-e only on experimental branch
+      - build_and_push:
+          tag_name: << pipeline.git.tag >>
+          channel: "experimental"
+          filters:
+            branches:
+              only: experimental
+            tags:
+              only: /^v[0-9]+\.[0-9]+\.[0-9]+-e$/
