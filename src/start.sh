@@ -6,11 +6,11 @@ can_write_to() {
     [ -z "$target" ] && return 1
 
     if [ -d "$target" ]; then
-        touch "$target/.write_test" 2>/dev/null || return 1
+        touch "$target/.write_test" 2> /dev/null || return 1
         rm -f "$target/.write_test"
     else
-        mkdir -p "$target" 2>/dev/null || return 1
-        touch "$target/.write_test" 2>/dev/null || return 1
+        mkdir -p "$target" 2> /dev/null || return 1
+        touch "$target/.write_test" 2> /dev/null || return 1
         rm -f "$target/.write_test"
     fi
 
@@ -36,15 +36,17 @@ fi
 
 mkdir -p "$NETWORK_VOLUME"
 export NETWORK_VOLUME
+sed -i '/^export NETWORK_VOLUME=/d' /etc/profile.d/container_env.sh
+echo "export NETWORK_VOLUME=\"$NETWORK_VOLUME\"" >> /etc/profile.d/container_env.sh
 
 # Helper functions for cleaner output
 status_msg() { echo -e "\n---> $1"; }
 
 # Try to find full tcmalloc first, fallback to minimal
-TCMALLOC_PATH=$(ldconfig -p 2>/dev/null | grep -E 'libtcmalloc\.so' | head -n1 | awk '{print $NF}')
+TCMALLOC_PATH=$(ldconfig -p 2> /dev/null | grep -E 'libtcmalloc\.so' | head -n1 | awk '{print $NF}')
 
 if [ -z "$TCMALLOC_PATH" ]; then
-    TCMALLOC_PATH=$(ldconfig -p 2>/dev/null | grep -E 'libtcmalloc_minimal\.so' | head -n1 | awk '{print $NF}')
+    TCMALLOC_PATH=$(ldconfig -p 2> /dev/null | grep -E 'libtcmalloc_minimal\.so' | head -n1 | awk '{print $NF}')
 fi
 
 # Apply if found
@@ -120,19 +122,19 @@ echo "🔄 Checking for updates and new dependencies..."
 find "$CUSTOM_NODES_DIR" -maxdepth 1 -type d -not -path "$CUSTOM_NODES_DIR" | while read -r node_path; do
     if [ -d "$node_path/.git" ]; then
         node_name=$(basename "$node_path")
-        
+
         # Check the 'mtime' (modified time) of requirements.txt before pulling
         REQ_FILE="$node_path/requirements.txt"
         BEFORE_MOD=0
-        [ -f "$REQ_FILE" ] && BEFORE_MOD=$(stat -c %Y "$REQ_FILE" 2>/dev/null || stat -f %m "$REQ_FILE" 2>/dev/null)
+        [ -f "$REQ_FILE" ] && BEFORE_MOD=$(stat -c %Y "$REQ_FILE" 2> /dev/null || stat -f %m "$REQ_FILE" 2> /dev/null)
 
         # Perform the update
         (cd "$node_path" && git pull --ff-only -q > /dev/null 2>&1)
 
         # Check if requirements.txt exists and if it was updated
         if [ -f "$REQ_FILE" ]; then
-            AFTER_MOD=$(stat -c %Y "$REQ_FILE" 2>/dev/null || stat -f %m "$REQ_FILE" 2>/dev/null)
-            
+            AFTER_MOD=$(stat -c %Y "$REQ_FILE" 2> /dev/null || stat -f %m "$REQ_FILE" 2> /dev/null)
+
             if [ "$BEFORE_MOD" != "$AFTER_MOD" ]; then
                 echo "📦 New dependencies detected for $node_name. Installing..."
                 # Use --no-cache-dir to save space on your volume
@@ -152,7 +154,7 @@ fi
 echo "🔧 Installing requirements for core Wan nodes in background..."
 (
     $PYTHON_BIN -m pip install --no-cache-dir \
-        -r "$CUSTOM_NODES_DIR/ComfyUI-KJNodes/requirements.txt" \
+        -r "$CUSTOM_NODES_DIR/ComfyUI-KJNodes/requirements.txt"
 ) &
 # Save the Process ID so we can wait for it later
 WAN_REQS_PID=$!
@@ -174,10 +176,10 @@ download_model() {
 
     # Simple corruption check: file < 10MB or .aria2 files
     if [ -f "$full_path" ]; then
-        local size_bytes=$(stat -f%z "$full_path" 2>/dev/null || stat -c%s "$full_path" 2>/dev/null || echo 0)
+        local size_bytes=$(stat -f%z "$full_path" 2> /dev/null || stat -c%s "$full_path" 2> /dev/null || echo 0)
         local size_mb=$((size_bytes / 1024 / 1024))
 
-        if [ "$size_bytes" -lt 10485760 ]; then  # Less than 10MB
+        if [ "$size_bytes" -lt 10485760 ]; then # Less than 10MB
             echo "🗑️  Deleting corrupted file (${size_mb}MB < 10MB): $full_path"
             rm -f "$full_path"
         else
@@ -190,7 +192,7 @@ download_model() {
     if [ -f "${full_path}.aria2" ]; then
         echo "🗑️  Deleting .aria2 control file: ${full_path}.aria2"
         rm -f "${full_path}.aria2"
-        rm -f "$full_path"  # Also remove any partial file
+        rm -f "$full_path" # Also remove any partial file
     fi
 
     echo "📥 Downloading $destination_file to $destination_dir..."
@@ -211,90 +213,90 @@ DETECTION_DIR="$NETWORK_VOLUME/ComfyUI/models/detection"
 
 # Download 480p native models
 if [ "${DOWNLOAD_480P_NATIVE_MODELS:-false}" = "true" ]; then
-  echo "Downloading 480p native models..."
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_480p_14B_bf16.safetensors"
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
+    echo "Downloading 480p native models..."
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_480p_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
 fi
 
 if [ "${DEBUG_MODELS:-false}" = "true" ]; then
-  echo "Downloading 480p native models..."
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_480p_14B_fp16.safetensors"
+    echo "Downloading 480p native models..."
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_480p_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_480p_14B_fp16.safetensors"
 fi
 
 # Handle full download (with SDXL)
 if [ "${DOWNLOAD_WAN_FUN_AND_SDXL_HELPER:-false}" = "true" ]; then
-  echo "Downloading Wan Fun 14B Model"
+    echo "Downloading Wan Fun 14B Model"
 
-  download_model "https://huggingface.co/alibaba-pai/Wan2.1-Fun-14B-Control/resolve/main/diffusion_pytorch_model.safetensors" "$DIFFUSION_MODELS_DIR/diffusion_pytorch_model.safetensors"
+    download_model "https://huggingface.co/alibaba-pai/Wan2.1-Fun-14B-Control/resolve/main/diffusion_pytorch_model.safetensors" "$DIFFUSION_MODELS_DIR/diffusion_pytorch_model.safetensors"
 
-  UNION_DIR="$NETWORK_VOLUME/ComfyUI/models/controlnet/SDXL/controlnet-union-sdxl-1.0"
-  mkdir -p "$UNION_DIR"
-  if [ ! -f "$UNION_DIR/diffusion_pytorch_model_promax.safetensors" ]; then
-    download_model "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors" "$UNION_DIR/diffusion_pytorch_model_promax.safetensors"
-  fi
+    UNION_DIR="$NETWORK_VOLUME/ComfyUI/models/controlnet/SDXL/controlnet-union-sdxl-1.0"
+    mkdir -p "$UNION_DIR"
+    if [ ! -f "$UNION_DIR/diffusion_pytorch_model_promax.safetensors" ]; then
+        download_model "https://huggingface.co/xinsir/controlnet-union-sdxl-1.0/resolve/main/diffusion_pytorch_model_promax.safetensors" "$UNION_DIR/diffusion_pytorch_model_promax.safetensors"
+    fi
 fi
 
 # Download Wan 2.2 model by default
 if [ "${DOWNLOAD_WAN22:-true}" = "true" ]; then
-  echo "Downloading Wan 2.2"
+    echo "Downloading Wan 2.2"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_high_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_high_noise_14B_fp16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_low_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_low_noise_14B_fp16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_high_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_high_noise_14B_fp16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_low_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_low_noise_14B_fp16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_ti2v_5B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_ti2v_5B_fp16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors" "$VAE_DIR/wan2.2_vae.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors" "$VAE_DIR/wan2.2_vae.safetensors"
 
 fi
 
 if [ "${DOWNLOAD_VACE:-false}" = "true" ]; then
-  echo "Downloading Wan 1.3B and 14B"
+    echo "Downloading Wan 1.3B and 14B"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
 
-  echo "Downloading VACE 14B Model"
+    echo "Downloading VACE 14B Model"
 
-  download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-VACE_module_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/Wan2_1-VACE_module_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-VACE_module_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/Wan2_1-VACE_module_14B_bf16.safetensors"
 
-  download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-VACE_module_1_3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/Wan2_1-VACE_module_1_3B_bf16.safetensors"
+    download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/Wan2_1-VACE_module_1_3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/Wan2_1-VACE_module_1_3B_bf16.safetensors"
 
 fi
 
 if [ "${DOWNLOAD_VACE_DEBUG:-false}" = "true" ]; then
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_vace_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_vace_14B_fp16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_vace_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_vace_14B_fp16.safetensors"
 fi
 
 # Download 720p native models
 if [ "${DOWNLOAD_720P_NATIVE_MODELS:-false}" = "true" ]; then
-  echo "Downloading 720p native models..."
+    echo "Downloading 720p native models..."
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_720p_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_i2v_720p_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_i2v_720p_14B_bf16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_14B_bf16.safetensors"
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/diffusion_models/wan2.1_t2v_1.3B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.1_t2v_1.3B_bf16.safetensors"
 fi
 
 # Download Wan Animate model by default
 if [ "${DOWNLOAD_WAN_ANIMATE:-true}" = "true" ]; then
-  echo "Downloading Wan Animate model..."
+    echo "Downloading Wan Animate model..."
 
-  download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_animate_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_animate_14B_bf16.safetensors"
+    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_animate_14B_bf16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_animate_14B_bf16.safetensors"
 fi
 
 # Download Steady Dancer model
 if [ "${DOWNLOAD_STEADY_DANCER:-false}" = "true" ]; then
-  echo "Downloading Steady Dancer model..."
+    echo "Downloading Steady Dancer model..."
 
-  download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/SteadyDancer/Wan21_I2V_SteadyDancer_fp16.safetensors" "$DIFFUSION_MODELS_DIR/Wan21_I2V_SteadyDancer_fp16.safetensors"
+    download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/SteadyDancer/Wan21_I2V_SteadyDancer_fp16.safetensors" "$DIFFUSION_MODELS_DIR/Wan21_I2V_SteadyDancer_fp16.safetensors"
 fi
 
 echo "Downloading InfiniteTalk model"
@@ -387,11 +389,9 @@ if pgrep -x "aria2c" > /dev/null; then
     done
 fi
 
-
 echo "✅ All models downloaded successfully!"
 
 echo "All downloads completed!"
-
 
 echo "Downloading upscale models"
 mkdir -p "$NETWORK_VOLUME/ComfyUI/models/upscale_models"
@@ -408,7 +408,6 @@ fi
 
 echo "Finished downloading models!"
 
-
 echo "Checking and copying workflow..."
 mkdir -p "$WORKFLOW_DIR"
 
@@ -416,7 +415,6 @@ mkdir -p "$WORKFLOW_DIR"
 cd /
 
 SOURCE_DIR="/comfyui-wan/workflows"
-
 
 # Loop over each subdirectory in the source directory
 for dir in "$SOURCE_DIR"/*/; do
@@ -441,13 +439,13 @@ if [ "${CHANGE_PREVIEW_METHOD:-false}" = "true" ]; then
     CONFIG_PATH="$COMFYUI_DIR/user/default/ComfyUI-Manager"
     CONFIG_FILE="$CONFIG_PATH/config.ini"
 
-# Ensure the directory exists
-mkdir -p "$CONFIG_PATH"
+    # Ensure the directory exists
+    mkdir -p "$CONFIG_PATH"
 
-# Create the config file if it doesn't exist
-if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Creating config.ini..."
-    cat <<EOL > "$CONFIG_FILE"
+    # Create the config file if it doesn't exist
+    if [ ! -f "$CONFIG_FILE" ]; then
+        echo "Creating config.ini..."
+        cat << EOL > "$CONFIG_FILE"
 [default]
 preview_method = auto
 git_exe =
@@ -467,11 +465,11 @@ always_lazy_install = False
 network_mode = public
 db_mode = cache
 EOL
-else
-    echo "config.ini already exists. Updating preview_method..."
-    sed -i 's/^preview_method = .*/preview_method = auto/' "$CONFIG_FILE"
-fi
-echo "Config file setup complete!"
+    else
+        echo "config.ini already exists. Updating preview_method..."
+        sed -i 's/^preview_method = .*/preview_method = auto/' "$CONFIG_FILE"
+    fi
+    echo "Config file setup complete!"
     echo "Default preview method updated to 'auto'"
 else
     echo "Skipping preview method update (CHANGE_PREVIEW_METHOD is not 'true')."
@@ -480,16 +478,15 @@ fi
 # Workspace as main working directory
 echo "cd $NETWORK_VOLUME" >> ~/.bashrc
 
-
 # Install dependencies
 echo "⏳ Waiting for background dependency installs to finish..."
 wait $WAN_REQS_PID
 REQ_STATUS=$?
 
 if [ $REQ_STATUS -ne 0 ]; then
-  echo "❌ Core Wan node requirements failed to install."
+    echo "❌ Core Wan node requirements failed to install."
 else
-  echo "✅ All Wan dependencies installed successfully."
+    echo "✅ All Wan dependencies installed successfully."
 fi
 
 status_msg "Checking for ZIP-masked LoRAs..."
@@ -616,8 +613,8 @@ if [ -n "${SSH_PUBLIC_KEY:-}" ]; then
     chmod 600 /root/.ssh/authorized_keys
 
     # Avoid duplicates
-    grep -qxF "$SSH_PUBLIC_KEY" /root/.ssh/authorized_keys 2>/dev/null || \
-        echo "$SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys
+    grep -qxF "$SSH_PUBLIC_KEY" /root/.ssh/authorized_keys 2> /dev/null \
+        || echo "$SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys
 fi
 
 /usr/sbin/sshd
