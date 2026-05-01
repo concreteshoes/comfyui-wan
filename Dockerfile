@@ -12,14 +12,14 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        python3.12 python3.12-venv python3.12-dev python3-pip \
+        python3 python3-venv python3-dev python3-pip \
         curl unzip ffmpeg ninja-build git aria2 git-lfs wget vim rsync \
         libgl1 libglib2.0-0 libgoogle-perftools4 build-essential gcc openssh-server && \
     \
     # Setup Python 3.12 defaults
-    ln -sf /usr/bin/python3.12 /usr/bin/python && \
+    ln -sf /usr/bin/python3 /usr/bin/python && \
     ln -sf /usr/bin/pip3 /usr/bin/pip && \
-    python3.12 -m venv /opt/venv && \
+    python3 -m venv /opt/venv && \
     \
     # Surgical SSH Config
     mkdir -p /root/.ssh /var/run/sshd && \
@@ -29,27 +29,30 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 2. Stable PyTorch 2.9 Stack
+# 2. Stable PyTorch 2.9.1 Stack
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir \
-        torch==2.9.0+cu128 \
-        torchvision==0.24.0+cu128 \
-        torchaudio==2.9.0+cu128 \
+        torch==2.9.1+cu128 \
+        torchvision==0.24.1+cu128 \
+        torchaudio==2.9.1+cu128 \
         --index-url https://download.pytorch.org/whl/cu128
 
-# 3. Core Tooling & SageAttention
+# 3. Core Tooling
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir packaging setuptools wheel triton sageattention
+    pip install --no-cache-dir packaging setuptools wheel triton==3.5.1
 
 # 4. Runtime Libraries & Comfy-CLI
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir pyyaml gdown onnxruntime-gpu comfy-cli \
+    pip install --no-cache-dir pyyaml onnxruntime-gpu comfy-cli \
         jupyterlab jupyterlab-lsp opencv-python-headless \
         jupyter-server jupyter-server-terminals ipykernel jupyterlab_code_formatter
 
 RUN curl -fsSL https://rclone.org/install.sh -o /tmp/rclone_install.sh && \
     bash /tmp/rclone_install.sh && \
     rm /tmp/rclone_install.sh
+
+# Establishing workspace
+WORKDIR /workspace
 
 # 5. ComfyUI & Custom Nodes (with Directory Fix & CircleCI Heartbeat)
 RUN --mount=type=cache,target=/root/.cache/pip \

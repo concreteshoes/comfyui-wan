@@ -39,10 +39,87 @@ export NETWORK_VOLUME
 sed -i '/^export NETWORK_VOLUME=/d' /etc/profile.d/container_env.sh
 echo "export NETWORK_VOLUME=\"$NETWORK_VOLUME\"" >> /etc/profile.d/container_env.sh
 
+mkdir -p "$NETWORK_VOLUME/logs"
+STARTUP_LOG="$NETWORK_VOLUME/logs/startup.log"
+echo "--- Startup log $(date) ---" >> "$STARTUP_LOG"
+
+# Explicitly use the venv python to avoid "module not found" errors
+PYTHON_BIN="/opt/venv/bin/python3"
+export PATH="/opt/venv/bin:$PATH"
+
+# Keep-alive loop to prevent connection timeout and monitor DNS
+(
+    echo "Starting network keep-alive service..."
+    while true; do
+        # Re-enforce DNS just in case the host overrode it
+        echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" > /etc/resolv.conf
+        TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+
+        # 1. Try to ping Google Drive's API endpoint
+        if curl -Is --connect-timeout 5 https://www.google.com > /dev/null 2>&1; then
+            echo "[$TIMESTAMP] Internet: REACHABLE (HTTPS)"
+        else
+            echo "[$TIMESTAMP] Internet: UNREACHABLE"
+            # Fallback to check raw DNS resolution via a simple tool like 'host' or 'nslookup'
+            if nslookup google.com > /dev/null 2>&1; then
+                echo "[$TIMESTAMP] Alert: DNS works, but HTTPS traffic is failing."
+            else
+                echo "[$TIMESTAMP] Alert: Total network/DNS failure."
+            fi
+        fi
+
+        # Wait 15 minutes (900 seconds)
+        sleep 900
+    done
+) > "$NETWORK_VOLUME/logs/network_keepalive.log" 2>&1 &
+
+# Run a command quietly, logging output to STARTUP_LOG.
+# Shows "Still working..." every 10 seconds.
+# On failure, prints a warning with the log path.
+run_quiet() {
+    local label="$1"
+    shift
+
+    # 1. Log a header so you know which command is starting
+    echo "====================================================" >> "$STARTUP_LOG"
+    echo "BEGIN: $label ($(date))" >> "$STARTUP_LOG"
+    echo "COMMAND: $*" >> "$STARTUP_LOG"
+    echo "====================================================" >> "$STARTUP_LOG"
+
+    (
+        while true; do
+            sleep 10
+            echo "       Still working on $label..."
+        done
+    ) &
+    local heartbeat_pid=$!
+
+    # 2. Run command. Adding --progress-bar off for pip specifically
+    "$@" >> "$STARTUP_LOG" 2>&1
+    local exit_code=$?
+
+    kill "$heartbeat_pid" 2> /dev/null
+    wait "$heartbeat_pid" 2> /dev/null
+
+    if [ $exit_code -ne 0 ]; then
+        echo "       ❌ Warning: $label failed (Exit Code: $exit_code)."
+        echo "       Check the end of $STARTUP_LOG for details."
+        echo "END: $label (FAILED)" >> "$STARTUP_LOG"
+    else
+        echo "END: $label (SUCCESS)" >> "$STARTUP_LOG"
+    fi
+
+    echo -e "\n" >> "$STARTUP_LOG" # Add spacing between log entries
+    return $exit_code
+}
+
 # Helper functions for cleaner output
 status_msg() { echo -e "\n---> $1"; }
 
+# ============================================================
 # Try to find full tcmalloc first, fallback to minimal
+# ============================================================
+
 TCMALLOC_PATH=$(ldconfig -p 2> /dev/null | grep -E 'libtcmalloc\.so' | head -n1 | awk '{print $NF}')
 
 if [ -z "$TCMALLOC_PATH" ]; then
@@ -57,11 +134,66 @@ else
     echo "tcmalloc not found, skipping LD_PRELOAD"
 fi
 
-# PATH AND VIRTUAL ENV SETUP
-# Explicitly use the venv python to avoid "module not found" errors
-PYTHON_BIN="/opt/venv/bin/python3"
-export PATH="/opt/venv/bin:$PATH"
+# ============================================================
+# GPU detection
+# ============================================================
 
+if command -v nvidia-smi > /dev/null 2>&1; then
+
+    readarray -t GPU_INFO < <(nvidia-smi --query-gpu=name,compute_cap --format=csv,noheader 2> /dev/null)
+
+    DETECTED_GPU=$(echo "${GPU_INFO[0]}" | cut -d',' -f1 | xargs)
+
+    CUDA_ARCH=$(printf "%s\n" "${GPU_INFO[@]}" \
+        | cut -d',' -f2 \
+        | sed 's/\.//g' \
+        | sort -u \
+        | xargs \
+        | tr ' ' ';')
+
+else
+    DETECTED_GPU="Unknown GPU"
+    CUDA_ARCH="80;86;89;90"
+fi
+
+# Final fallback
+[ -z "$CUDA_ARCH" ] && CUDA_ARCH="80;86;89;90"
+
+echo "$DETECTED_GPU" > /tmp/detected_gpu
+
+# ============================================================
+# Startup banner
+# ============================================================
+echo ""
+echo "================================================"
+echo "  Starting up..."
+status_msg "Detected GPU: $DETECTED_GPU (Compute Capability: $CUDA_ARCH)"
+echo "================================================"
+
+# ---------------------------------------------------------
+# Sage Attention 2.x
+# ---------------------------------------------------------
+if $PYTHON_BIN -c "import sageattention" &> /dev/null; then
+    status_msg "SageAttention already installed. Skipping build."
+    SAGE_ATTENTION_AVAILABLE=true
+else
+    # Only attempt install if NOT already installed AND architecture is supported
+    if echo "$CUDA_ARCH" | grep -Eq '(^|;)(80|86|89|90|100|120)($|;)'; then
+        status_msg "Supported architecture ($CUDA_ARCH) detected. Installing SageAttention 2..."
+        run_quiet "SageAttention V2" pip install --no-cache-dir --no-build-isolation git+https://github.com/thu-ml/SageAttention.git@main
+
+        # Link libcuda for the kernels
+        ln -sf /usr/lib/x86_64-linux-gnu/libcuda.so.1 /usr/lib/x86_64-linux-gnu/libcuda.so
+        SAGE_ATTENTION_AVAILABLE=true
+    else
+        status_msg "Unsupported architecture ($CUDA_ARCH). Skipping SageAttention."
+        SAGE_ATTENTION_AVAILABLE=false
+    fi
+fi
+
+# ============================================================
+# Setting up workspace
+# ============================================================
 # This is in case there's any special installs or overrides that needs to occur when starting the machine before starting ComfyUI
 if [ -f "$NETWORK_VOLUME/comfyui-wan/src/additional_params.sh" ]; then
     chmod +x "$NETWORK_VOLUME/comfyui-wan/src/additional_params.sh"
@@ -109,6 +241,9 @@ fi
 
 echo "📥 Setting up CivitAI Downloader..."
 if [ ! -f "/usr/local/bin/download_with_aria.py" ]; then
+    # Add dependencies to venv first
+    $PYTHON_BIN -m pip install requests tqdm
+
     git clone "https://github.com/concreteshoes/CivitAI_Downloader.git" /tmp/CivitAI_Downloader || echo "Git clone failed"
     mv /tmp/CivitAI_Downloader/download_with_aria.py "/usr/local/bin/" || echo "Move failed"
     chmod +x "/usr/local/bin/download_with_aria.py" || echo "Chmod failed"
@@ -152,12 +287,16 @@ if [ -d "$CUSTOM_NODES_DIR/ComfyUI-KJNodes" ]; then
 fi
 
 echo "🔧 Installing requirements for core Wan nodes in background..."
-(
-    $PYTHON_BIN -m pip install --no-cache-dir \
-        -r "$CUSTOM_NODES_DIR/ComfyUI-KJNodes/requirements.txt"
-) &
-# Save the Process ID so we can wait for it later
-WAN_REQS_PID=$!
+if [ -f "$CUSTOM_NODES_DIR/ComfyUI-KJNodes/requirements.txt" ]; then
+    (
+        $PYTHON_BIN -m pip install --no-cache-dir \
+            -r "$CUSTOM_NODES_DIR/ComfyUI-KJNodes/requirements.txt"
+    ) &
+    WAN_REQS_PID=$!
+else
+    echo "⚠️ KJNodes requirements not found, skipping background install."
+    WAN_REQS_PID=""
+fi
 
 export CHANGE_PREVIEW_METHOD="true"
 
@@ -198,7 +337,7 @@ download_model() {
     echo "📥 Downloading $destination_file to $destination_dir..."
 
     # Download without falloc (since it's not supported in your environment)
-    aria2c -x 16 -s 16 -k 1M --continue=true -d "$destination_dir" -o "$destination_file" "$url" &
+    aria2c -x 16 -s 16 -k 1M --continue=true --file-allocation=none -d "$destination_dir" -o "$destination_file" "$url" &
 
     echo "Download started in background for $destination_file"
 }
@@ -435,7 +574,14 @@ done
 
 if [ "${CHANGE_PREVIEW_METHOD:-false}" = "true" ]; then
     echo "Updating default preview method..."
-    sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' $NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js
+    VHS_JS_FILE="$NETWORK_VOLUME/ComfyUI/custom_nodes/ComfyUI-VideoHelperSuite/web/js/VHS.core.js"
+
+    if [ -f "$VHS_JS_FILE" ]; then
+        sed -i '/id: *'"'"'VHS.LatentPreview'"'"'/,/defaultValue:/s/defaultValue: false/defaultValue: true/' "$VHS_JS_FILE"
+        echo "Default preview method updated to 'auto'"
+    else
+        echo "⚠️ VHS.core.js not found. Skipping preview method update."
+    fi
     CONFIG_PATH="$COMFYUI_DIR/user/default/ComfyUI-Manager"
     CONFIG_FILE="$CONFIG_PATH/config.ini"
 
@@ -480,8 +626,12 @@ echo "cd $NETWORK_VOLUME" >> ~/.bashrc
 
 # Install dependencies
 echo "⏳ Waiting for background dependency installs to finish..."
-wait $WAN_REQS_PID
-REQ_STATUS=$?
+if [ -n "$WAN_REQS_PID" ]; then
+    wait $WAN_REQS_PID
+    REQ_STATUS=$?
+else
+    REQ_STATUS=0
+fi
 
 if [ $REQ_STATUS -ne 0 ]; then
     echo "❌ Core Wan node requirements failed to install."
@@ -509,33 +659,26 @@ VRAM_THRESHOLD=40000 # 40GB in MB
 
 echo "📟 Detected GPU VRAM: ${GPU_VRAM_MB}MB"
 
-# Sage Attention check
-echo "🔍 Checking for SageAttention..."
-if $PYTHON_BIN -c "import sageattention" &> /dev/null; then
-    SAGE_ATTENTION_AVAILABLE=true
-else
-    SAGE_ATTENTION_AVAILABLE=false
-fi
-
 # Build Command
-EXTRA_FLAGS="--listen --fp8_e4m3fn-text-enc --preview-method auto"
+LAUNCH_FLAGS="--listen --fp8_e4m3fn-text-enc --preview-method auto"
 
 # Memory Optimization based on VRAM
 if [ "$GPU_VRAM_MB" -ge "$VRAM_THRESHOLD" ]; then
     echo "🚀 High VRAM detected (40GB+). Enabling --highvram."
-    EXTRA_FLAGS="$EXTRA_FLAGS --highvram"
+    LAUNCH_FLAGS="$LAUNCH_FLAGS --highvram"
 else
-    echo "⚖️ Standard VRAM detected (24GB). Forcing FP8 for Model and VAE."
-    EXTRA_FLAGS="$EXTRA_FLAGS --fp8_base --fp8_e4m3fn-vae"
+    echo "⚖️ Standard VRAM detected (24GB). Forcing FP8 for Model."
+    # ComfyUI natively uses --weight-dtype to force model precision
+    LAUNCH_FLAGS="$LAUNCH_FLAGS --weight-dtype fp8_e4m3fn"
 fi
 
 # SageAttention check
 if [ "$SAGE_ATTENTION_AVAILABLE" = "true" ]; then
     echo "✨ SageAttention enabled."
-    EXTRA_FLAGS="$EXTRA_FLAGS --use-sage-attention"
+    LAUNCH_FLAGS="$LAUNCH_FLAGS --use-sage-attention"
 fi
 
-COMFYUI_CMD="$PYTHON_BIN $COMFYUI_DIR/main.py $EXTRA_FLAGS"
+COMFYUI_CMD="$PYTHON_BIN $COMFYUI_DIR/main.py $LAUNCH_FLAGS"
 
 # Runtime Updates (Added 'install' keyword)
 echo "🆙 Updating runtime extensions..."
@@ -543,7 +686,7 @@ $PYTHON_BIN -m pip install --no-cache-dir comfy-aimdo comfy-kitchen --upgrade
 
 # Launch
 URL="http://127.0.0.1:8188"
-status_msg "▶️ Starting ComfyUI for Wan Video Generation..."
+status_msg "▶️ Starting ComfyUI with flags: $LAUNCH_FLAGS"
 nohup $COMFYUI_CMD > "$NETWORK_VOLUME/comfyui_nohup.log" 2>&1 &
 
 # Timeout logic
@@ -620,5 +763,8 @@ fi
 /usr/sbin/sshd
 
 echo "✅ SSH ready."
+
+# Stream the log to the container output so 'docker logs' works
+tail -f "$NETWORK_VOLUME/comfyui_nohup.log" &
 
 sleep infinity
