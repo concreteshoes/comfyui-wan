@@ -1,5 +1,9 @@
 # ComfyUI Wan w/ Sage Attention for CUDA 12.8
 
+### Deploy
+- RunPod  - https://tinyurl.com/ynfwwzxu
+- Vast.ai - https://tinyurl.com/28jvbeuv
+
 ### Variables Selection
 
 Both Wan 2.2, Animate, S2V and Wan 2.1 InfiniteTalk are always set to download, use `false` to disable.
@@ -79,6 +83,7 @@ SSH_PUBLIC_KEY=""
 | 8188 | ComfyUI  |
 | 8888 | Jupyter  |
 | 22   | SSH      |
+
 
 ### Accessing the Instance
 
