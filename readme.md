@@ -2,27 +2,68 @@
 
 ### Variables Selection
 
-Wan 2.2 and Wan Animate are downloaded by default, change to `false` if desired:
+Both Wan 2.2, Animate, S2V and Wan 2.1 InfiniteTalk are always set to download, use `false` to disable.
+Other models are skipped unless set to `true`.
 
 ```env
 DOWNLOAD_WAN22=""
 DOWNLOAD_WAN_ANIMATE=""
+DOWNLOAD_WAN_S2V=""
 ```
-
-The following models are **not** downloaded unless explicitly set to `true`:
-
-Wan 2.1 & FP16 version / Vace & FP16 version / SDXL Helper / SteadyDancer
-
 ```env
 DOWNLOAD_480P_NATIVE_MODELS=""
 DOWNLOAD_720P_NATIVE_MODELS=""
-DEBUG_MODELS=""
 DOWNLOAD_VACE=""
-DOWNLOAD_VACE_DEBUG=""
 DOWNLOAD_WAN_FUN_AND_SDXL_HELPER=""
 DOWNLOAD_STEADY_DANCER=""
+DOWNLOAD_INFINITETALK=""
 ```
-###### If you want absolutely everything, make sure your disk is at least 200GB
+ComfyUI is set to pass the text encoder with fp8 flag by default, if you don't want
+that set the following flag to `false`.
+```env
+USE_FP8_TEXT_ENC=""
+```
+Pre-installed custom nodes:
+- ComfyUI_UltimateSDUpscale  
+- ComfyUI-KJNodes  
+- ComfyUI-LivePortraitKJ  
+- ComfyUI_wav2lip  
+- ComfyUI-AnimateDiff-Evolved  
+- ComfyUI_IPAdapter_plus  
+- rgthree-comfy  
+- ComfyUI_JPS-Nodes  
+- ComfyUI_Comfyroll_CustomNodes  
+- comfy-plasma  
+- ComfyUI-VideoHelperSuite  
+- mikey_nodes  
+- ComfyUI-Impact-Pack  
+- comfyui_controlnet_aux  
+- ComfyUI-Easy-Use  
+- ComfyUI-Florence2  
+- ComfyUI-LatentSyncWrapper  
+- was-node-suite-comfyui  
+- ComfyUI-Logic  
+- ComfyUI_essentials  
+- cg-image-picker  
+- ComfyUI_LayerStyle  
+- cg-use-everywhere  
+- ComfyUI-segment-anything-2  
+- RES4LYF  
+- ComfyUI-TeaCache  
+- ComfyUI-Frame-Interpolation  
+- ComfyUI-Detail-Daemon  
+- ComfyUI-WanVideoWrapper  
+- ComfyUI-VibeVoice  
+- ComfyUI-WanAnimatePreprocess  
+- ComfyUI-FSampler  
+- ComfyUI-WanMoEScheduler  
+- ComfyUI-VAE-Utils  
+- ComfyUI-Wan22FMLF  
+- ComfyUI_LayerStyle_Advance  
+- masquerade-nodes-comfyui  
+- ComfyUI-RMBG  
+- ComfyLiterals
+
 
 ### Auth Tokens
 

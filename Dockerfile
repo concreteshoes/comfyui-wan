@@ -14,7 +14,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends \
         python3 python3-venv python3-dev python3-pip \
         curl unzip ffmpeg ninja-build git aria2 git-lfs wget vim rsync \
-        libgl1 libglib2.0-0 libgoogle-perftools4 build-essential gcc openssh-server && \
+        libgl1 libglib2.0-0 libgoogle-perftools4 build-essential libsm6 libxext6 libxrender1 \
+        libusb-1.0-0 gcc openssh-server && \
     \
     # Setup Python 3.12 defaults
     ln -sf /usr/bin/python3 /usr/bin/python && \
@@ -37,9 +38,26 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         torchaudio==2.9.1+cu128 \
         --index-url https://download.pytorch.org/whl/cu128
 
-# 3. Core Tooling
+# 3. Install the build tools first
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir packaging setuptools wheel triton==3.5.1
+    pip install --no-cache-dir packaging setuptools wheel cython "numpy<2.0"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir \
+    librosa \
+    soundfile \
+    decord \
+    accelerate \
+    transformers>=4.48.0 \
+    diffusers \
+    peft \
+    sentencepiece \
+    einops \
+    scipy \
+    timm \
+    imageio imageio-ffmpeg moviepy \
+    insightface==0.7.3 \
+    triton==3.5.1
 
 # 4. Runtime Libraries & Comfy-CLI
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -64,6 +82,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     for repo in \
         https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git \
         https://github.com/kijai/ComfyUI-KJNodes.git \
+        https://github.com/kijai/ComfyUI-LivePortraitKJ.git \
+        https://github.com/ShmuelRonen/ComfyUI_wav2lip.git \
+        https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git \
+        https://github.com/pamparamm/ComfyUI_IPAdapter_plus.git \
         https://github.com/rgthree/rgthree-comfy.git \
         https://github.com/JPS-GER/ComfyUI_JPS-Nodes.git \
         https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
