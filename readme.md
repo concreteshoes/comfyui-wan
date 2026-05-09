@@ -27,6 +27,13 @@ that set the following flag to `false`.
 ```env
 USE_FP8_TEXT_ENC=""
 ```
+
+NSFW friendly captioners - JoyCaption Beta One & Florence nsfw v2:
+```env
+DOWNLOAD_JOYCAPTION=""
+DOWNLOAD_FLORENCE2=""
+```
+
 Pre-installed custom nodes:
 - ComfyUI_UltimateSDUpscale  
 - ComfyUI-KJNodes  
