@@ -57,8 +57,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     timm \
     imageio imageio-ffmpeg "moviepy<2.0" \
     onnxruntime-gpu \
-    "insightface==0.7.3" \
-    "triton==3.5.1" \
+    insightface==0.7.3 \
+    triton==3.5.1 \
     bitsandbytes \
     protobuf
 
