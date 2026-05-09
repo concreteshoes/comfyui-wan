@@ -478,7 +478,7 @@ fi
 
 # Download text encoders
 echo "📥 Downloading text encoders..."
-download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors" "$TEXT_ENCODERS_DIR/umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors" "$TEXT_ENCODERS_DIR/umt5_xxl_fp16.safetensors"
 
 download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/open-clip-xlm-roberta-large-vit-huge-14_visual_fp16.safetensors" "$TEXT_ENCODERS_DIR/open-clip-xlm-roberta-large-vit-huge-14_visual_fp16.safetensors"
 
@@ -830,22 +830,27 @@ cd "$NETWORK_VOLUME/ComfyUI" || exit 1
 # GPU VRAM check
 # Grabs the total memory of the first GPU in MB
 GPU_VRAM_MB=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits | head -n 1)
-VRAM_THRESHOLD=40000 # 40GB in MB
+VRAM_THRESHOLD=32000 # 32GB in MB
 
 echo "📟 Detected GPU VRAM: ${GPU_VRAM_MB}MB"
 
 # Build Command
 LAUNCH_FLAGS="--listen --preview-method auto"
 
-# Add FP8 text encoder flag if enabled (default: true)
+# Add FP8 flags if enabled
 if [ "${USE_FP8_TEXT_ENC:-true}" = "true" ]; then
     LAUNCH_FLAGS="$LAUNCH_FLAGS --fp8_e4m3fn-text-enc"
     status_msg "FP8 text encoder enabled"
 fi
 
+if [ "${USE_FP8_MODEL:-}" = "true" ]; then
+    LAUNCH_FLAGS="$LAUNCH_FLAGS --fp8_e4m3fn-unet"
+    status_msg "FP8 model weight casting enabled (E4M3FN)"
+fi
+
 # Memory Optimization based on VRAM
 if [ "$GPU_VRAM_MB" -ge "$VRAM_THRESHOLD" ]; then
-    echo "🚀 High VRAM detected (40GB+). Enabling --highvram."
+    echo "🚀 High VRAM detected (32GB+). Enabling --highvram."
     LAUNCH_FLAGS="$LAUNCH_FLAGS --highvram"
 else
     echo "⚖️ Standard VRAM detected."

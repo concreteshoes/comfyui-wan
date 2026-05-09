@@ -23,9 +23,10 @@ DOWNLOAD_STEADY_DANCER=""
 DOWNLOAD_INFINITETALK=""
 ```
 ComfyUI is set to pass the text encoder with fp8 flag by default, if you don't want
-that set the following flag to `false`.
+that set the following flag to `false`. Optionally you can enable FP8 for the UNET.
 ```env
 USE_FP8_TEXT_ENC=""
+USE_FP8_MODEL=""
 ```
 
 NSFW friendly captioners - JoyCaption Beta One & Florence nsfw v2:
