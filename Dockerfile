@@ -48,17 +48,17 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     soundfile \
     decord \
     accelerate \
-    transformers>=4.48.0 \
+    "transformers>=4.48.0" \
     diffusers \
     peft \
     sentencepiece \
     einops \
     scipy \
     timm \
-    imageio imageio-ffmpeg moviepy<2.0 \
+    imageio imageio-ffmpeg "moviepy<2.0" \
     onnxruntime-gpu \
-    insightface==0.7.3 \
-    triton==3.5.1 \
+    "insightface==0.7.3" \
+    "triton==3.5.1" \
     bitsandbytes \
     protobuf
 
