@@ -419,18 +419,13 @@ fi
 if [ "${DOWNLOAD_WAN22:-true}" = "true" ]; then
     echo "📥 Downloading Wan 2.2"
 
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_high_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/Wan-2.2-T2V-High-Noise-BF16.safetensors" "$DIFFUSION_MODELS_DIR/Wan-2.2-T2V-High-Noise-BF16.safetensors"
 
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_t2v_low_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/Wan-2.2-T2V-Low-Noise-BF16.safetensors" "$DIFFUSION_MODELS_DIR/Wan-2.2-T2V-Low-Noise-BF16.safetensors"
 
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_high_noise_14B_fp16.safetensors"
+    download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/Wan-2.2-I2V-High-Noise-BF16.safetensors" "$DIFFUSION_MODELS_DIR/Wan-2.2-I2V-High-Noise-BF16.safetensors"
 
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_i2v_low_noise_14B_fp16.safetensors"
-
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors" "$DIFFUSION_MODELS_DIR/wan2.2_ti2v_5B_fp16.safetensors"
-
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors" "$VAE_DIR/wan2.2_vae.safetensors"
-
+    download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/Wan-2.2-I2V-Low-Noise-BF16.safetensors" "$DIFFUSION_MODELS_DIR/Wan-2.2-I2V-Low-Noise-BF16.safetensors"
 fi
 
 # Download Wan Animate model by default
@@ -478,7 +473,7 @@ fi
 
 # Download text encoders
 echo "📥 Downloading text encoders..."
-download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp16.safetensors" "$TEXT_ENCODERS_DIR/umt5_xxl_fp16.safetensors"
+download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/models_t5_umt5-xxl-enc-bf16.pth" "$TEXT_ENCODERS_DIR/models_t5_umt5-xxl-enc-bf16.pth"
 
 download_model "https://huggingface.co/Kijai/WanVideo_comfy/resolve/main/open-clip-xlm-roberta-large-vit-huge-14_visual_fp16.safetensors" "$TEXT_ENCODERS_DIR/open-clip-xlm-roberta-large-vit-huge-14_visual_fp16.safetensors"
 
@@ -491,7 +486,7 @@ download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/reso
 # Download VAE
 if [ "${DOWNLOAD_VACE:-}" = "true" ] || [ "${DOWNLOAD_720P_NATIVE_MODELS:-}" = "true" ] || [ "${DOWNLOAD_480P_NATIVE_MODELS:-}" = "true" ] || [ "${DOWNLOAD_WAN_S2V:-true}" = "true" ]; then
     echo "📥 Downloading VAE..."
-    download_model "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors" "$VAE_DIR/wan_2.1_vae.safetensors"
+    download_model "https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/Wan2_1_VAE_bf16.safetensors" "$VAE_DIR/Wan2_1_VAE_bf16.safetensors"
 fi
 
 # ==========================================
