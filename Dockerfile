@@ -42,6 +42,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install packaging setuptools wheel cython "numpy<2.0" Pillow
 
+# 4. Core Tooling & Critical ML Libraries
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install \
     librosa \
@@ -52,8 +53,18 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     diffusers \
     huggingface-hub \
     hf_xet \
+    numba \
     psutil \
     peft \
+    matplotlib \
+    scikit-image \
+    scikit-learn \
+    mediapipe \
+    omegaconf \
+    ftfy \
+    addict \
+    yapf \
+    loguru \
     sentencepiece \
     einops \
     scipy \
@@ -62,6 +73,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     onnxruntime-gpu \
     insightface==0.7.3 \
     triton==3.5.1 \
+    gguf \
     bitsandbytes \
     protobuf
 
@@ -75,7 +87,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         cuda-python \
         colored
 
-# 4. Runtime Libraries & Comfy-CLI
+# 5. Runtime Libraries & Comfy-CLI
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install pyyaml comfy-cli \
         jupyterlab jupyterlab-lsp \
@@ -89,7 +101,7 @@ RUN curl -fsSL https://rclone.org/install.sh -o /tmp/rclone_install.sh && \
 # Establishing workspace
 WORKDIR /workspace
 
-# 5. ComfyUI & Custom Nodes (with Directory Fix & CircleCI Heartbeat)
+# 6. ComfyUI & Custom Nodes (with Directory Fix & CircleCI Heartbeat)
 RUN --mount=type=cache,target=/root/.cache/pip \
     # Create workspace and install comfy with analytics disabled
     mkdir -p /ComfyUI/custom_nodes && \
@@ -97,6 +109,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     set -e; \
     cd /ComfyUI/custom_nodes; \
     for repo in \
+        https://github.com/city96/ComfyUI-GGUF.git \
         https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git \
         https://github.com/kijai/ComfyUI-KJNodes.git \
         https://github.com/kijai/ComfyUI-LivePortraitKJ.git \
@@ -117,10 +130,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         https://github.com/yolain/ComfyUI-Easy-Use.git \
         https://github.com/kijai/ComfyUI-Florence2.git \
         https://github.com/ShmuelRonen/ComfyUI-LatentSyncWrapper.git \
-        https://github.com/WASasquatch/was-node-suite-comfyui.git \
+        https://github.com/ltdrdata/was-node-suite-comfyui.git \
         https://github.com/theUpsider/ComfyUI-Logic.git \
         https://github.com/cubiq/ComfyUI_essentials.git \
-        https://github.com/chrisgoringe/cg-image-picker.git \
+        https://github.com/chrisgoringe/cg-image-filter.git \
         https://github.com/chflame163/ComfyUI_LayerStyle.git \
         https://github.com/chrisgoringe/cg-use-everywhere.git \
         https://github.com/kijai/ComfyUI-segment-anything-2.git \
@@ -155,7 +168,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
             echo "🛠️ Harmonizing Dependencies for $repo_dir..."; \
             \
             # 1. Harmonize OpenCV
-            sed -i -E 's/opencv-(python|contrib-python)(-headless)?(==[0-9.]+)?/opencv-contrib-python-headless/g' "$repo_dir/requirements.txt"; \
+            sed -i -E 's/opencv-(python|contrib-python)(-headless)?(\[[a-zA-Z0-9_-]+\])?(==[0-9.]+)?/opencv-contrib-python-headless/g' "$repo_dir/requirements.txt"; \
             \
             # 2. Harmonize bitsandbytes (Strips versions like ==0.41.1 or >=0.35)
             sed -i -E 's/bitsandbytes([>=<~= ]+[0-9.]+)?/bitsandbytes/g' "$repo_dir/requirements.txt"; \
@@ -164,14 +177,25 @@ RUN --mount=type=cache,target=/root/.cache/pip \
             sed -i -E 's/protobuf([>=<~= ]+[0-9.]+)?/protobuf/g' "$repo_dir/requirements.txt"; \
             \
             # 4. Harmonize onnxruntime
-            sed -i -E 's/^onnxruntime$/onnxruntime-gpu/g' "$repo_dir/requirements.txt"; \
+            sed -i -E 's/^onnxruntime([>=<~= ]+[0-9.]+)?$/onnxruntime-gpu/g' "$repo_dir/requirements.txt"; \
             \
-            pip install --progress-bar off -v -r "$repo_dir/requirements.txt"; \
-            # 5. Strip torch (already installed with specific CUDA build)
-            sed -i -E 's/^torch$/# torch already installed/g' "$repo_dir/requirements.txt"; \
+            # 5. Strip torch stack (already installed with specific CUDA build)
+            sed -i -E 's/^torch([>=<~= ]+[0-9.]+)?$/# torch already installed/g' "$repo_dir/requirements.txt"; \
+            \
+            sed -i -E 's/^torchvision([>=<~= ]+[0-9.]+)?$/# torchvision already installed/g' "$repo_dir/requirements.txt"; \
+            \
+            sed -i -E 's/^torchaudio([>=<~= ]+[0-9.]+)?$/# torchaudio already installed/g' "$repo_dir/requirements.txt"; \
             \
             # 6. Strip numpy (already pinned to <2.0)
-            sed -i -E 's/^numpy$/# numpy already installed/g' "$repo_dir/requirements.txt"; \
+            sed -i -E 's/^numpy([>=<~= ]+[0-9.]+)?$/# numpy already installed/g' "$repo_dir/requirements.txt"; \
+            \
+            # 7. Strip numba version pin (managed globally to stay compatible with numpy)
+            sed -i -E 's/^numba([>=<~= ]+[0-9.]+)?$/numba/g' "$repo_dir/requirements.txt"; \
+            \
+            # 8. Strip clip-interrogator
+            sed -i -E 's/^clip[-_]interrogator([>=<~= ]+[0-9.]+)?$/clip-interrogator/g' "$repo_dir/requirements.txt"; \
+            \
+            pip install --progress-bar off -v -r "$repo_dir/requirements.txt"; \
         fi; \
         \
         # 5. Run install.py if it exists
@@ -180,7 +204,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         fi; \
     done
 
-# 6. Final Assets & Entrypoint
+# 7. Final Assets & Entrypoint
 COPY src/start_script.sh /start_script.sh
 COPY docker-entrypoint.sh /docker-entrypoint.sh
 COPY 4xLSDIR.pth /4xLSDIR.pth
