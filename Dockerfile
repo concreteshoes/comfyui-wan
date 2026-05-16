@@ -40,7 +40,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 # 3. Install the build tools first
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install packaging setuptools wheel cython "numpy<2.0"
+    pip install packaging setuptools wheel cython "numpy<2.0" Pillow
 
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install \
@@ -48,8 +48,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     soundfile \
     decord \
     accelerate \
-    "transformers>=4.48.0" \
+    transformers \
     diffusers \
+    huggingface-hub \
+    hf_xet \
+    psutil \
     peft \
     sentencepiece \
     einops \
@@ -62,10 +65,20 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     bitsandbytes \
     protobuf
 
+# TensorRT for CUDA 12.x (baked in since base image is CUDA 12.8.1)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install \
+        tensorrt-cu12==10.13.3.9 \
+        tensorrt-cu12-bindings==10.13.3.9 \
+        tensorrt-cu12-libs==10.13.3.9 \
+        polygraphy \
+        cuda-python \
+        colored
+
 # 4. Runtime Libraries & Comfy-CLI
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install pyyaml comfy-cli \
-        jupyterlab jupyterlab-lsp opencv-python-headless \
+        jupyterlab jupyterlab-lsp \
         jupyter-server jupyter-server-terminals ipykernel jupyterlab_code_formatter \
         opencv-contrib-python-headless ultralytics segment-anything transparent-background
 
@@ -90,6 +103,9 @@ RUN --mount=type=cache,target=/root/.cache/pip \
         https://github.com/ShmuelRonen/ComfyUI_wav2lip.git \
         https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved.git \
         https://github.com/pamparamm/ComfyUI_IPAdapter_plus.git \
+        https://github.com/huchukato/ComfyUI-RIFE-TensorRT-Auto.git \
+        https://github.com/huchukato/ComfyUI-Upscaler-TensorRT-Auto.git \
+        https://github.com/huchukato/ComfyUI-QwenVL-Mod.git \
         https://github.com/rgthree/rgthree-comfy.git \
         https://github.com/JPS-GER/ComfyUI_JPS-Nodes.git \
         https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
@@ -151,6 +167,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
             sed -i -E 's/^onnxruntime$/onnxruntime-gpu/g' "$repo_dir/requirements.txt"; \
             \
             pip install --progress-bar off -v -r "$repo_dir/requirements.txt"; \
+            # 5. Strip torch (already installed with specific CUDA build)
+            sed -i -E 's/^torch$/# torch already installed/g' "$repo_dir/requirements.txt"; \
+            \
+            # 6. Strip numpy (already pinned to <2.0)
+            sed -i -E 's/^numpy$/# numpy already installed/g' "$repo_dir/requirements.txt"; \
         fi; \
         \
         # 5. Run install.py if it exists
